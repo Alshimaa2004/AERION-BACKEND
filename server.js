@@ -1,4 +1,5 @@
 const express = require('express');
+const db = require('./src/db');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -3616,3 +3617,4 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 module.exports = app;
+
