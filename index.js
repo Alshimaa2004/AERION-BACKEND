@@ -36,12 +36,32 @@ app.use('/uploads', express.static('uploads'));
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/air-quality';
 
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => {
+// MongoDB connection with serverless support
+let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected) {
+    console.log('Using existing MongoDB connection');
+    return;
+  }
+
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    isConnected = true;
+    console.log('MongoDB connected successfully');
+  } catch (err) {
     console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
+    // Don't exit process in serverless environment
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
+  }
+};
+
+connectDB();
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
@@ -3596,25 +3616,28 @@ function freePort(port) {
   }
 }
 
-// Free the port before starting the server
-freePort(PORT);
+// Free the port before starting the server (only in local development)
+if (process.env.NODE_ENV !== 'production') {
+  freePort(PORT);
+  
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log('='.repeat(70));
+    console.log(`Air Quality API Server v5.0.0 (Full Version with Location Tracking)`);
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
+    console.log(`Excel file: ${fs.existsSync(excelFilePath) ? 'Available' : 'Not Available'}`);
+    console.log(`Uploads folder: ${fs.existsSync(uploadDir) ? 'Ready' : 'Issue'}`);
+    console.log(`Map API: Available`);
+    console.log(`Dashboard API: Available`);
+    console.log(`Chatbot API: Available`);
+    console.log(`Recommendations API: Available`);
+    console.log(`Location Tracking API: Available`);
+    console.log(`Manual Notifications API: Available`);
+    console.log(`AI Prediction endpoint: POST /api/predict`);
+    console.log('='.repeat(70));
+  });
+}
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('='.repeat(70));
-  console.log(`Air Quality API Server v5.0.0 (Full Version with Location Tracking)`);
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
-  console.log(`Excel file: ${fs.existsSync(excelFilePath) ? 'Available' : 'Not Available'}`);
-  console.log(`Uploads folder: ${fs.existsSync(uploadDir) ? 'Ready' : 'Issue'}`);
-  console.log(`Map API: Available`);
-  console.log(`Dashboard API: Available`);
-  console.log(`Chatbot API: Available`);
-  console.log(`Recommendations API: Available`);
-  console.log(`Location Tracking API: Available`);
-  console.log(`Manual Notifications API: Available`);
-  console.log(`AI Prediction endpoint: POST /api/predict`);
-  console.log('='.repeat(70));
-});
-
+// Export app for Vercel serverless
 module.exports = app;
 

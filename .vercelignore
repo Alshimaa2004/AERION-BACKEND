@@ -1,0 +1,13 @@
+node_modules
+.git
+.gitignore
+.env
+data/
+ai/
+backend-environment-app/
+.vercel
+*.md
+!README.md
+uploads/
+tmp/
+*.log
