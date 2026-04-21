@@ -1,9 +1,14 @@
+
 const mongoose = require('mongoose');
 
-mongoose.connect("mongodb+srv://alshimaaehab22_db_user:Shimaa2004@cluster0.ioxfgeh.mongodb.net/?appName=Cluster0")
-.then(() => {
+const connectDB = async () => {
+  try {
+    await mongoose.connect("mongodb+srv://alshimaa918_db_user:Shimaa2004@cluster0.vjl7eqi.mongodb.net/");
     console.log("Connected to MongoDB");
-})
-.catch((err) => {
+  } catch (err) {
     console.error("Error connecting to MongoDB:", err);
-});
+    process.exit(1); // يوقف السيرفر لو فشل الاتصال
+  }
+};
+
+module.exports = connectDB;

@@ -39,27 +39,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/air-qu
 // MongoDB connection with serverless support
 let isConnected = false;
 
-const connectDB = async () => {
-  if (isConnected) {
-    console.log('Using existing MongoDB connection');
-    return;
-  }
-
-  try {
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    isConnected = true;
-    console.log('MongoDB connected successfully');
-  } catch (err) {
-    console.error('MongoDB connection error:', err);
-    // Don't exit process in serverless environment
-    if (process.env.NODE_ENV !== 'production') {
-      process.exit(1);
-    }
-  }
-};
+const connectDB = require('./src/db');
 
 connectDB();
 
