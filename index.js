@@ -273,14 +273,17 @@ class ExcelParser {
       if (!this.fileExists()) return {};
       const workbook = xlsx.readFile(this.filePath);
       const result = {};
+      
+      // Mapping between sheet names and standardized pollutant codes
       const sheetsMapping = {
-        'PM10': { headerRow: 1, dataStartRow: 2 },
-        'PM2.5': { headerRow: 1, dataStartRow: 2 },
-        'SO2': { headerRow: 0, dataStartRow: 1 },
-        'NO2': { headerRow: 2, dataStartRow: 3 },
-        'CO': { headerRow: 1, dataStartRow: 2 },
-        'O3': { headerRow: 1, dataStartRow: 2 },
+        'PM10': { headerRow: 1, dataStartRow: 2, code: 'PM10', unit: 'μg/m³' },
+        'PM2.5': { headerRow: 1, dataStartRow: 2, code: 'PM2.5', unit: 'μg/m³' },
+        'SO2': { headerRow: 0, dataStartRow: 1, code: 'SO₂', unit: 'ppb' },
+        'NO2': { headerRow: 2, dataStartRow: 3, code: 'NO₂', unit: 'ppb' },
+        'CO': { headerRow: 1, dataStartRow: 2, code: 'CO', unit: 'ppm' },
+        'O3': { headerRow: 1, dataStartRow: 2, code: 'O₃', unit: 'ppm' },
       };
+      
       for (const [sheetName, config] of Object.entries(sheetsMapping)) {
         const sheet = workbook.Sheets[sheetName];
         if (!sheet) continue;
@@ -303,11 +306,7 @@ class ExcelParser {
           }
         }
         if (lastValue !== null && !isNaN(lastValue)) {
-          let unit = 'μg/m³';
-          if (sheetName === 'CO') unit = 'ppm';
-          else if (sheetName === 'O3') unit = 'ppm';
-          else if (sheetName === 'SO2' || sheetName === 'NO2') unit = 'ppb';
-          result[sheetName] = { value: lastValue, unit };
+          result[config.code] = { value: lastValue, unit: config.unit };
         }
       }
       return result;
@@ -334,35 +333,47 @@ class ExcelParser {
 
 class AQICalculator {
   calculatePollutantAQI(pollutant, value) {
-    if (pollutant === 'PM2.5') {
+    // Handle both regular and Unicode subscript codes
+    const pollutantMap = {
+      'PM2.5': 'PM2.5',
+      'PM10': 'PM10',
+      'CO': 'CO',
+      'NO₂': 'NO2',
+      'SO₂': 'SO2',
+      'O₃': 'O3'
+    };
+    
+    const normalizedPollutant = pollutantMap[pollutant] || pollutant;
+    
+    if (normalizedPollutant === 'PM2.5') {
       if (value <= 12.0) return Math.round((value / 12) * 50);
       if (value <= 35.4) return Math.round(((value - 12.1) / 23.3) * 49 + 51);
       if (value <= 55.4) return Math.round(((value - 35.5) / 19.9) * 49 + 101);
       if (value <= 150.4) return Math.round(((value - 55.5) / 94.9) * 49 + 151);
       return 300;
     }
-    if (pollutant === 'PM10') {
+    if (normalizedPollutant === 'PM10') {
       if (value <= 54) return Math.round((value / 54) * 50);
       if (value <= 154) return Math.round(((value - 55) / 99) * 49 + 51);
       if (value <= 254) return Math.round(((value - 155) / 99) * 49 + 101);
       if (value <= 354) return Math.round(((value - 255) / 99) * 49 + 151);
       return 300;
     }
-    if (pollutant === 'SO2' || pollutant === 'NO2') {
+    if (normalizedPollutant === 'SO2' || normalizedPollutant === 'NO2') {
       if (value <= 50) return Math.round((value / 50) * 50);
       if (value <= 100) return Math.round(((value - 51) / 49) * 49 + 51);
       if (value <= 200) return Math.round(((value - 101) / 99) * 49 + 101);
       if (value <= 400) return Math.round(((value - 201) / 199) * 49 + 151);
       return 300;
     }
-    if (pollutant === 'CO') {
+    if (normalizedPollutant === 'CO') {
       if (value <= 4.4) return Math.round((value / 4.4) * 50);
       if (value <= 9.4) return Math.round(((value - 4.5) / 4.9) * 49 + 51);
       if (value <= 12.4) return Math.round(((value - 9.5) / 2.9) * 49 + 101);
       if (value <= 15.4) return Math.round(((value - 12.5) / 2.9) * 49 + 151);
       return 300;
     }
-    if (pollutant === 'O3') {
+    if (normalizedPollutant === 'O3') {
       if (value <= 0.054) return Math.round((value / 0.054) * 50);
       if (value <= 0.070) return Math.round(((value - 0.055) / 0.015) * 49 + 51);
       if (value <= 0.085) return Math.round(((value - 0.071) / 0.014) * 49 + 101);

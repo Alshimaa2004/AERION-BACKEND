@@ -20,7 +20,19 @@ class ExcelParser {
       if (!sheet) return [];
 
       const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-      return data[0].slice(1).map(name => ({
+      
+      // Find the first row that has station names (usually row 1)
+      let headerRow = null;
+      for (let i = 0; i < Math.min(5, data.length); i++) {
+        if (data[i] && data[i].length > 1 && data[i][1]) {
+          headerRow = data[i];
+          break;
+        }
+      }
+      
+      if (!headerRow) return [];
+      
+      return headerRow.slice(1).map(name => ({
         name_ar: name?.toString().trim() || '',
         governorate: this.guessGovernorate(name)
       })).filter(s => s.name_ar);
@@ -36,32 +48,54 @@ class ExcelParser {
       
       const workbook = xlsx.readFile(this.filePath);
       const result = {};
-      const sheets = ['PM10', 'PM2.5', 'SO2', 'NO2', 'CO', 'O3'];
       
-      for (const sheetName of sheets) {
+      // Mapping between sheet names and standardized pollutant codes
+      const sheetsMapping = [
+        { sheetName: 'PM10', code: 'PM10', unit: 'μg/m³' },
+        { sheetName: 'PM2.5', code: 'PM2.5', unit: 'μg/m³' },
+        { sheetName: 'SO2', code: 'SO₂', unit: 'ppb' },
+        { sheetName: 'NO2', code: 'NO₂', unit: 'ppb' },
+        { sheetName: 'CO', code: 'CO', unit: 'ppm' },
+        { sheetName: 'O3', code: 'O₃', unit: 'ppm' }
+      ];
+      
+      for (const { sheetName, code, unit } of sheetsMapping) {
         const sheet = workbook.Sheets[sheetName];
         if (!sheet) continue;
 
         const data = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-        const headers = data[0];
         
+        // Find the header row with station names
+        let headerRow = null;
+        let headerRowIndex = -1;
+        for (let i = 0; i < Math.min(5, data.length); i++) {
+          if (data[i] && data[i].length > 1 && data[i][1]) {
+            headerRow = data[i];
+            headerRowIndex = i;
+            break;
+          }
+        }
+        
+        if (!headerRow) continue;
+        
+        // Find station index in header
         let stationIndex = -1;
-        for (let i = 1; i < headers.length; i++) {
-          if (headers[i]?.toString().includes(stationName)) {
+        for (let i = 1; i < headerRow.length; i++) {
+          if (headerRow[i]?.toString().trim().includes(stationName)) {
             stationIndex = i;
             break;
           }
         }
 
         if (stationIndex > 0) {
-          for (let i = data.length - 1; i > 0; i--) {
+          // Find the last non-empty value in the station column
+          for (let i = data.length - 1; i > headerRowIndex; i--) {
             const row = data[i];
             const value = row?.[stationIndex];
-            if (value !== undefined && value !== null && value !== '') {
-              result[sheetName] = {
+            if (value !== undefined && value !== null && value !== '' && !isNaN(parseFloat(value))) {
+              result[code] = {
                 value: parseFloat(value),
-                unit: sheetName === 'CO' ? 'ppm' : 
-                      ['SO2', 'NO2', 'O3'].includes(sheetName) ? 'ppb' : 'μg/m³'
+                unit: unit
               };
               break;
             }
@@ -70,6 +104,7 @@ class ExcelParser {
       }
       return result;
     } catch (error) {
+      console.error('Error getting station data:', error);
       return {};
     }
   }
