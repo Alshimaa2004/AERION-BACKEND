@@ -1,40 +1,47 @@
-// Script to free port 5002 by killing any process using it
 const { execSync } = require('child_process');
 
-const PORT = process.env.PORT || 5002;
+const PORT = 5002;
 
-console.log(`🔍 Checking if port ${PORT} is in use...`);
+console.log(`Checking if port ${PORT} is in use...\n`);
 
 try {
   // Find process using the port
- const output = execSync(`netstat -ano | findstr :${PORT}`, { encoding: 'utf8' });
+  const output = execSync(`netstat -ano | findstr :${PORT}`, { encoding: 'utf8' });
+  const lines = output.trim().split('\n');
   
-  if (output.trim()) {
-   const lines = output.split('\n').filter(line => line.includes('LISTENING'));
+  if (lines.length > 0) {
+    console.log('Found processes using port', PORT + ':');
+    console.log(output);
     
-    for (const line of lines) {
-     const parts = line.trim().split(/\s+/);
-     const pid = parts[parts.length -1];
-      
-     console.log(`⚠️  Found process with PID ${pid} using port ${PORT}`);
-     console.log(`🛑 Stopping process ${pid}...`);
-      
-     try {
-        execSync(`taskkill /PID ${pid} /F`, { stdio: 'inherit' });
-       console.log(`✅ Process ${pid} stopped successfully`);
-      } catch (error) {
-       console.error(`❌ Failed to stop process ${pid}:`, error.message);
+    // Extract PIDs and kill them
+    const pids = new Set();
+    lines.forEach(line => {
+      const parts = line.trim().split(/\s+/);
+      const pid = parts[parts.length - 1];
+      if (pid && !isNaN(pid)) {
+        pids.add(pid);
       }
-    }
+    });
     
-   console.log(`✅ Port ${PORT} is now free`);
+    console.log('\nKilling processes...\n');
+    
+    pids.forEach(pid => {
+      try {
+        execSync(`taskkill /PID ${pid} /F`);
+        console.log(`✓ Killed process ${pid}`);
+      } catch (error) {
+        console.log(`✗ Failed to kill process ${pid}: ${error.message}`);
+      }
+    });
+    
+    console.log('\n✅ Port', PORT, 'is now free!\n');
   } else {
-   console.log(`✅ Port ${PORT} is already free`);
+    console.log('✅ Port', PORT, 'is already free\n');
   }
 } catch (error) {
-  if (error.status === 1) {
-   console.log(`✅ Port ${PORT} is not in use`);
+  if (error.stdout && error.stdout.includes('5002')) {
+    console.log('Error parsing output:', error.message);
   } else {
-   console.error('❌ Error checking port:', error.message);
+    console.log('✅ Port', PORT, 'is free\n');
   }
 }

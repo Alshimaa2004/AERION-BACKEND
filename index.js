@@ -545,7 +545,7 @@ class RecommendationService {
   }
 }
 
-const excelFilePath = path.join(process.cwd(), 'data', 'data.xlsx');
+const excelFilePath = path.join(__dirname, 'data', 'بيانات ملوثات الهواء لبعض محطات الشبكة لعام 2024.xlsx');
 const excelParser = new ExcelParser(excelFilePath);
 const aqiCalculator = new AQICalculator();
 const locationService = new LocationService();
